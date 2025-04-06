@@ -28,8 +28,10 @@ async def monitor_alarm_async(
     logger.info(f'Connected to alarm at {ip}:{port}')
 
     while True:
-        await loop.run_in_executor(pool, alarm_conn.query_alarm)
-        alarm_messages = await loop.run_in_executor(pool, alarm_conn.receive_data)
+        # await loop.run_in_executor(pool, alarm_conn.query_alarm)
+        alarm_conn.query_alarm()
+        # alarm_messages = await loop.run_in_executor(pool, alarm_conn.receive_data)
+        alarm_messages = alarm_conn.receive_data()
         if alarm_messages:
             for message in alarm_messages:
                 print(message)

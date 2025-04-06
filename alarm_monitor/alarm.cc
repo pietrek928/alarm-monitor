@@ -64,7 +64,7 @@ void alarm_disconnect(int sock) {
 
 int recv_data(int sock, uint8_t *buf, int size) {
     int r = recv(sock, buf, size, 0);
-    if (r <= 0) network_error("Receiving data failed");
+    if (r < 0) network_error("Receiving data failed");
     return r;
 }
 
@@ -207,6 +207,33 @@ class AlarmConnection {
     AlarmConnection(const std::string ip, const uint16_t port) {
         connect(ip, port);
     }
+
+    // --- Delete Copy ---
+    AlarmConnection(const AlarmConnection &) = delete;
+    AlarmConnection &operator=(const AlarmConnection &) = delete;
+
+    // --- Define Move ---
+    AlarmConnection &operator=(AlarmConnection &&other) noexcept {
+      if (this != &other) { // Prevent self-assignment
+        disconnect();
+        sock = other.sock;
+        alarm_state = other.alarm_state;
+        packet_state = other.packet_state;
+        packet_last_byte = other.packet_last_byte;
+        memcpy(packet_buf, other.packet_buf, MAX_PACKET);
+
+        other.sock = -1;
+        other.alarm_state = 0;
+        other.packet_state = 0;
+        other.packet_last_byte = 0;
+      }
+      return *this;
+    }
+
+    AlarmConnection(AlarmConnection &&other) noexcept {
+      *this = std::move(other);
+    }
+
     ~AlarmConnection() {
         disconnect();
     }
@@ -238,6 +265,8 @@ class AlarmConnection {
 
     void query_alarm() {
       uint8_t q = ALARM_CMD::AL;
-      send_data(sock, &q, 1);
+      uint8_t send_buf[MAX_PACKET];
+      int send_len = prepare_alarm_packet(send_buf, &q, 1);
+      send_data(sock, send_buf, send_len);
     }
 };
