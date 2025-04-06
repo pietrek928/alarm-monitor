@@ -1,0 +1,27 @@
+[project]
+name = "alarm_monitor"
+version = "0.0.1"
+dependencies = [
+    "httpx",
+    "pydantic"
+]
+
+[build-system]
+requires = ["setuptools>=45", "wheel", "Cython>=0.29.21"]
+build-backend = "setuptools.build_meta"
+
+[tool.cython]
+language_level = "3"
+
+[tool.setuptools]
+packages = ["alarm_monitor"]
+
+[[tool.setuptools.ext-modules]]
+name = "alarm_monitor.alarm"
+sources = ["alarm_monitor/alarm.pyx"]
+language = "c++"
+# extra-compile-args = ["-std=c++17", "-march=native", "-Ofast"]
+extra-compile-args = ["-std=c++17", "-march=native", "-O2"]
+
+[tool.setuptools.cmdclass]
+build_ext = "Cython.Build.build_ext"
