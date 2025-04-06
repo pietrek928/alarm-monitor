@@ -3,7 +3,7 @@ name = "alarm_monitor"
 version = "0.0.1"
 dependencies = [
     "httpx",
-    "pydantic"
+    "click"
 ]
 
 [build-system]

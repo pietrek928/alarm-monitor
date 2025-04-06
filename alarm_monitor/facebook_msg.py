@@ -1,11 +1,12 @@
+from dataclasses import dataclass
 import logging
 from typing import Tuple
 from datetime import datetime
 from httpx import AsyncClient, HTTPError
-from pydantic import BaseModel
 
 
-class InputMessage(BaseModel):
+@dataclass
+class InputMessage:
     id: str
     timestamp: datetime
     content: str

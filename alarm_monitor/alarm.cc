@@ -11,6 +11,7 @@
 #include <sys/socket.h> //socket
 #include <unistd.h>
 
+
 constexpr static uint8_t STOP_BYTE = 0xFE;
 constexpr static uint8_t STOP_BYTE_ENCODE = 0xF0;
 constexpr static uint8_t PACKET_END_BYTE = 0x0D;
@@ -30,7 +31,7 @@ void network_error(const char *msg) {
   throw std::runtime_error((std::string)msg + ": " + strerror(errno));
 }
 
-int alarm_connect(const char *ip, const uint16_t port) {
+int alarm_connect(const char *ip, const uint16_t port, int timeout_sec = 30) {
   struct sockaddr_in server;
   int sock;
 
@@ -40,7 +41,7 @@ int alarm_connect(const char *ip, const uint16_t port) {
     network_error("creating socket failed");
 
   struct timeval tv;
-  tv.tv_sec = 30; /* 30 Secs Timeout */
+  tv.tv_sec = timeout_sec; /* 30 Secs Timeout */
   tv.tv_usec = 0; // Not init'ing this can cause strange errors
   if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv,
                  sizeof(struct timeval)))
@@ -236,7 +237,7 @@ class AlarmConnection {
     }
 
     void query_alarm() {
-        uint8_t q = ALARM_CMD::AL;
-        send_data(sock, &q, 1);
+      uint8_t q = ALARM_CMD::AL;
+      send_data(sock, &q, 1);
     }
 };
