@@ -170,9 +170,24 @@ void compare_alarm_state(uint32_t old_zones, uint32_t new_zones,
   }
 }
 
+std::string describe_move_state(uint32_t move_state) {
+  if (!move_state) return "No move detected";
+
+  std::string descr = "Move detecte in zones:";
+  int it = 1;
+  while (move_state != 0) {
+    if (move_state & 1) {
+      descr += " " + std::to_string(it);
+    }
+    move_state >>= 1;
+    it++;
+  }
+  return descr;
+}
+
 class AlarmConnection {
     int sock = -1;
-    uint32_t alarm_state = 0;
+    uint32_t alarm_state = 0, move_state = 0;
     uint8_t packet_buf[MAX_PACKET];
     int packet_state = 0;
     uint8_t packet_last_byte = 0;
@@ -196,7 +211,11 @@ class AlarmConnection {
       case AL: {
         uint32_t new_alarm_state = get_num(buf, size);
         compare_alarm_state(alarm_state, new_alarm_state, messages_out);
+        alarm_state = new_alarm_state;
       } break;
+      case MOVE:
+        move_state = get_num(buf, size);
+        break;
       default:
         messages_out.push_back("Unknown packet type" + std::to_string(code));
       }
@@ -263,8 +282,19 @@ class AlarmConnection {
         return messages_out;
     }
 
+    std::string describe_move() {
+      return describe_move_state(move_state);
+    }
+
     void query_alarm() {
       uint8_t q = ALARM_CMD::AL;
+      uint8_t send_buf[MAX_PACKET];
+      int send_len = prepare_alarm_packet(send_buf, &q, 1);
+      send_data(sock, send_buf, send_len);
+    }
+
+    void query_move() {
+      uint8_t q = ALARM_CMD::MOVE;
       uint8_t send_buf[MAX_PACKET];
       int send_len = prepare_alarm_packet(send_buf, &q, 1);
       send_data(sock, send_buf, send_len);

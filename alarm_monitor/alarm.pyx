@@ -27,5 +27,11 @@ cdef class AlarmConnection:
             m.decode('utf-8') for m in self.cc_obj.receive_data()
         ]
 
+    def describe_move(self):
+        self.cc_obj.describe_move()
+
     def query_alarm(self):
         self.cc_obj.query_alarm()
+
+    def query_move(self):
+        self.cc_obj.query_move()

@@ -5,6 +5,10 @@ from datetime import datetime
 from httpx import AsyncClient, HTTPError
 
 
+logger = logging.getLogger('fb')
+logger.setLevel(logging.INFO)
+
+
 @dataclass
 class InputMessage:
     id: str
@@ -28,10 +32,10 @@ async def get_fb_user_id(access_token):
             return data.get("id")
 
         except HTTPError as http_err:
-            logging.exception(f"HTTP error occurred: {http_err} {response.text}")
+            logger.exception(f"HTTP error occurred: {http_err} {response.text}")
             return False
         except Exception as e:
-            logging.exception(f"Error sending Facebook message: {e}")
+            logger.exception(f"Error sending Facebook message: {e}")
             return False
 
 async def send_fb_message(recipient_id, message_text, access_token):
@@ -43,6 +47,7 @@ async def send_fb_message(recipient_id, message_text, access_token):
     }
     params = {"access_token": access_token}
 
+    logger.info(f'{message_text} -> {recipient_id}')
     async with AsyncClient() as client:
         try:
             response = await client.post(url, headers=headers, params=params, json=payload)
@@ -50,10 +55,10 @@ async def send_fb_message(recipient_id, message_text, access_token):
             return True
 
         except HTTPError as http_err:
-            logging.exception(f"HTTP error occurred: {http_err} {response.text}")
+            logger.exception(f"HTTP error occurred: {http_err} {response.text}")
             return False
         except Exception as e:
-            logging.exception(f"Error sending Facebook message: {e}")
+            logger.exception(f"Error sending Facebook message: {e}")
             return False
 
 async def receive_fb_messages(access_token) -> Tuple[InputMessage, ...]:
@@ -82,9 +87,9 @@ async def receive_fb_messages(access_token) -> Tuple[InputMessage, ...]:
             return messages
 
         except HTTPError as http_err:
-            logging.exception(f"HTTP error occurred: {http_err} {response.text}")
+            logger.exception(f"HTTP error occurred: {http_err} {response.text}")
             return False
         except Exception as e:
-            logging.exception(f"Error receiving Facebook messages: {e}")
+            logger.exception(f"Error receiving Facebook messages: {e}")
             return False
 
