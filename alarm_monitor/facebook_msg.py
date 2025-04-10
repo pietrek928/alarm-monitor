@@ -80,7 +80,7 @@ async def receive_fb_messages(access_token) -> Tuple[InputMessage, ...]:
                         for message_data in conversation["messages"]["data"]:
                             messages.append(InputMessage(
                                 id=message_data["id"],
-                                timestamp=datetime.fromisoformat(message_data["created_time"]),
+                                timestamp=datetime.strptime(message_data["created_time"], '%Y-%m-%dT%H:%M:%S%z'),
                                 content=message_data["message"],
                                 sender_id=message_data["from"]["id"]
                             ))
@@ -88,8 +88,8 @@ async def receive_fb_messages(access_token) -> Tuple[InputMessage, ...]:
 
         except HTTPError as http_err:
             logger.exception(f"HTTP error occurred: {http_err} {response.text}")
-            return False
+            return ()
         except Exception as e:
             logger.exception(f"Error receiving Facebook messages: {e}")
-            return False
+            return ()
 

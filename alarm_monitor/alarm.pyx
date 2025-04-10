@@ -1,4 +1,7 @@
-from .alarm_ccexport cimport AlarmConnection as AlarmConnectionCC
+from .alarm_ccexport cimport (
+    AlarmConnection as AlarmConnectionCC,
+    numbers_to_mask as numbers_to_mask_cc
+)
 
 def _to_bytes(v):
     if not isinstance(v, (str, bytes)):
@@ -27,8 +30,14 @@ cdef class AlarmConnection:
             m.decode('utf-8') for m in self.cc_obj.receive_data()
         ]
 
+    def send_arm(self, code, partitions):
+        self.cc_obj.send_arm(int(code, 16), numbers_to_mask_cc(partitions))
+
+    def send_disarm(self, code, partitions):
+        self.cc_obj.send_disarm(int(code, 16), numbers_to_mask_cc(partitions))
+
     def describe_move(self):
-        self.cc_obj.describe_move()
+        return self.cc_obj.describe_move().decode('utf-8')
 
     def query_alarm(self):
         self.cc_obj.query_alarm()

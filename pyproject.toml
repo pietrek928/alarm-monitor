@@ -2,8 +2,11 @@
 name = "alarm_monitor"
 version = "0.0.1"
 dependencies = [
+    "aiofiles",
     "httpx",
-    "click"
+    "click",
+    "unidecode",
+    "dataclasses_json"
 ]
 
 [build-system]
@@ -20,7 +23,6 @@ packages = ["alarm_monitor"]
 name = "alarm_monitor.alarm"
 sources = ["alarm_monitor/alarm.pyx"]
 language = "c++"
-# extra-compile-args = ["-std=c++17", "-march=native", "-Ofast"]
 extra-compile-args = ["-std=c++17", "-march=native", "-O2"]
 
 [tool.setuptools.cmdclass]
