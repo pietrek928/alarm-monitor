@@ -1,14 +1,14 @@
 import re
 from datetime import datetime
 from dataclasses import dataclass, field
-from typing import Tuple
+from typing import Iterable, Tuple
 from unidecode import unidecode
 
 
 @dataclass
 class UserCommand:
-    sender_id: str
-    timestamp: datetime
+    sender_id: str = None
+    timestamp: datetime = None
 
 @dataclass
 class QueryMove(UserCommand):
@@ -19,8 +19,16 @@ class Hello(UserCommand):
     pass
 
 @dataclass
+class Help(UserCommand):
+    pass
+
+@dataclass
+class Subscribe(UserCommand):
+    subscribe: bool = None
+
+@dataclass
 class AuthME(UserCommand):
-    password: str
+    password: str = None
 
 @dataclass
 class AlarmON(UserCommand):
@@ -32,7 +40,11 @@ class AlarmOFF(UserCommand):
 
 @dataclass
 class SetAlarmCode(UserCommand):
-    code: str
+    code: str = None
+
+@dataclass
+class SetDefaultPartitions(UserCommand):
+    zones: Tuple[int, ...] = None
 
 
 SPLIT_SENTENCE_PATTERN = re.compile(r'[\n,.]|\bi\b|\boraz\b')
@@ -68,16 +80,34 @@ def get_sentence_numbers(s: Tuple[str, ...]) -> Tuple[int, ...]:
     )
 
 
+NOT_WORDS = ('nie', )
 QUERY_PREF = ('czy', 'jak', 'co')
 AUTH_ME_WORDS_PREF = ('zaloguj', 'autoryzuj', 'loguj', 'pozwol', 'zezwol')
+HELP_WORDS_PREF = ('pomoc', 'pomoz', 'instrukcja', 'instrukcje', 'komendy', 'help')
+SUBSCRIBE_WORDS_PREF = ('informuj', 'subskrybuj', 'powiadom', 'powiadamiaj')
 MOVE_WORD_PREF = ('ruch', 'rusz', 'porusz')
 HELLO_WORD_PREF = ('hej', 'czesc', 'witaj', 'witam')
-ON_WORS_PREF = ('wlacz', 'zalacz', 'odpal')
-OFF_WORDS_PREF = ('wylacz', 'zgas')
-ALARM_WORDS = ('alarm', 'system')
+ON_WORS_PREF = ('wlacz', 'zalacz', 'odpal', 'zazbroj')
+OFF_WORDS_PREF = ('wylacz', 'zgas', 'rozbroj')
+ALARM_WORDS = ('alarm', 'system', 'zazbroj', 'rozbroj')
+PARTITIONS_WORDS = ('partycj', 'stref')
 SET_WORDS = ('ustaw', )
 CODE_WORDS = ('kod', 'haslo')
 
+
+def get_help(auth: bool = False):
+    help = f'''
+Autoryzacja: zaloguj <haslo>
+    '''
+    if auth:
+        help += f'''
+Powiadomienia: informuj
+Włącz alarm: wlacz alarm <partycje?> | zazbroj <partycje?>
+Wyłącz alarm: wylacz alarm <partycje?> | rozbroj <partycje?>
+Ustaw kod: ustaw kod <kod>
+Ustaw domyślne partycje: ustaw partycje <partycje>
+    '''
+    return help
 
 
 def has_word_by_pref(s: Tuple[str, ...], pref: Tuple[str, ...]):
@@ -85,47 +115,47 @@ def has_word_by_pref(s: Tuple[str, ...], pref: Tuple[str, ...]):
         x.startswith(p) for p in pref for x in s
     )
 
-def parse_sentence(sender_id, timestamp, s: Tuple[str, ...]):
+def has_word(s: Tuple[str, ...], words: Tuple[str, ...]):
+    return any(
+        x in words for x in s
+    )
+
+def parse_sentence(s: Tuple[str, ...]) -> Iterable[UserCommand]:
     if has_word_by_pref(s, AUTH_ME_WORDS_PREF):
-        yield AuthME(
-            sender_id=sender_id, timestamp=timestamp,
-            password=s[-1]
-        )
+        yield AuthME(password=s[-1])
+
+    if has_word_by_pref(s, HELP_WORDS_PREF):
+        yield Help()
+        return
 
     if has_word_by_pref(s[:1], HELLO_WORD_PREF):
         s = s[1:]
-        yield Hello(
-            sender_id=sender_id, timestamp=timestamp
-        )
+        yield Hello()
 
     if has_word_by_pref(s[:1], SET_WORDS):
         if has_word_by_pref(s, CODE_WORDS):
-            yield SetAlarmCode(
-                sender_id=sender_id, timestamp=timestamp,
-                code=s[-1]
-            )
+            yield SetAlarmCode(code=s[-1])
             return
+        if has_word_by_pref(s, PARTITIONS_WORDS):
+            yield SetDefaultPartitions(zones=get_sentence_numbers(s))
+            return
+
+    if has_word_by_pref(s, SUBSCRIBE_WORDS_PREF):
+        yield Subscribe(subscribe=not has_word(s, NOT_WORDS))
+        return
 
     if s and s[0] in QUERY_PREF:
         s = s[1:]
         if has_word_by_pref(s, MOVE_WORD_PREF):
-            yield QueryMove(
-                sender_id=sender_id, timestamp=timestamp
-            )
+            yield QueryMove()
             return
 
     if has_word_by_pref(s, OFF_WORDS_PREF):
         if has_word_by_pref(s, ALARM_WORDS):
-            yield AlarmOFF(
-                sender_id=sender_id, timestamp=timestamp,
-                partitions=get_sentence_numbers(s)
-            )
+            yield AlarmOFF(partitions=get_sentence_numbers(s))
             return
 
     if has_word_by_pref(s, ON_WORS_PREF):
         if has_word_by_pref(s, ALARM_WORDS):
-            yield AlarmON(
-                sender_id=sender_id, timestamp=timestamp,
-                partitions=get_sentence_numbers(s)
-            )
+            yield AlarmON(partitions=get_sentence_numbers(s))
             return

@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from dataclasses_json import dataclass_json
 
-from .commands import AlarmOFF, AlarmON, AuthME, Hello, QueryMove, SetAlarmCode, parse_sentence, split_sentences
+from .commands import AlarmOFF, AlarmON, AuthME, Hello, Help, QueryMove, SetAlarmCode, SetDefaultPartitions, Subscribe, get_help, parse_sentence, split_sentences
 from .facebook_msg import InputMessage, get_fb_user_id, receive_fb_messages, send_fb_message
 from .alarm import AlarmConnection
 
@@ -64,21 +64,13 @@ class MessageFilter:
             }
 
 
-# if m.sender_id not in self.allow_fb_ids:
-#                 logger.info(f'Ignoring message from {m.sender_id}: {m.content}')
-#                 continue
-
-#     def allow_user(self, fb_id: str):
-#         self.allow_fb_ids.add(fb_id)
-
-#     def disallow_user(self, fb_id: str):
-#         self.allow_fb_ids.discard(fb_id)
-
-
 def parse_messages(messages: Tuple[InputMessage, ...]):
     for m in messages:
         for s in split_sentences(m.content):
-            yield from parse_sentence(m.sender_id, m.timestamp, s)
+            for cmd in parse_sentence(s):
+                cmd.sender_id = m.sender_id
+                cmd.timestamp = m.timestamp
+                yield cmd
 
 
 async def monitor_alarm_async(
@@ -125,30 +117,47 @@ async def monitor_alarm_async(
 
                 resp = set()
                 for cmd in tuple(parse_messages(input_messages)):
+                    if cmd.sender_id == fb_user_id:
+                        continue
+
                     if isinstance(cmd, Hello):
                         await send_fb_message(cmd.sender_id, 'Cześć! Tu rezydencja Malużyn', facebookToken)
+                        continue
+                    if isinstance(cmd, Help):
+                        await send_fb_message(cmd.sender_id, get_help(cmd.sender_id in cfg.authorize_fb_ids), facebookToken)
                         continue
                     if isinstance(cmd, AuthME):
                         if cmd.password == secret:
                             cfg.authorize_fb_ids.add(cmd.sender_id)
-                            await send_fb_message(cmd.sender_id, 'Zalogowano', facebookToken)
+                            await send_fb_message(cmd.sender_id, 'Zautoryzowano', facebookToken)
                         continue
 
                     if cmd.sender_id not in cfg.authorize_fb_ids:
                         logger.info(f'Command from {cmd.sender_id} not authorized: {cmd}')
                         continue
 
+                    if isinstance(cmd, Subscribe):
+                        if cmd.subscribe:
+                            cfg.alert_fb_ids.add(cmd.sender_id)
+                            await send_fb_message(cmd.sender_id, 'Powiadomienia włączone', facebookToken)
+                        else:
+                            cfg.alert_fb_ids.discard(cmd.sender_id)
+                            await send_fb_message(cmd.sender_id, 'Powiadomienia wyłączone', facebookToken)
                     elif isinstance(cmd, QueryMove):
                         await send_fb_message(cmd.sender_id, alarm_conn.describe_move(), facebookToken)
                     elif isinstance(cmd, SetAlarmCode):
                         cfg.code = cmd.code
+                    elif isinstance(cmd, SetDefaultPartitions):
+                        cfg.partitions = set(cmd.zones)
                     elif isinstance(cmd, AlarmON):
-                        if cmd.partitions:
-                            await loop.run_in_executor(pool, alarm_conn.send_arm, cfg.code, cmd.partitions)
+                        partitions = cmd.partitions or cfg.partitions
+                        if partitions:
+                            await loop.run_in_executor(pool, alarm_conn.send_arm, cfg.code, partitions)
                             resp.add(cmd.sender_id)
                     elif isinstance(cmd, AlarmOFF):
-                        if cmd.partitions:
-                            await loop.run_in_executor(pool, alarm_conn.send_disarm, cfg.code, cmd.partitions)
+                        partitions = cmd.partitions or cfg.partitions
+                        if partitions:
+                            await loop.run_in_executor(pool, alarm_conn.send_disarm, cfg.code, partitions)
                             resp.add(cmd.sender_id)
 
                 if resp:
