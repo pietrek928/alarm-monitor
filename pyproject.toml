@@ -9,6 +9,9 @@ dependencies = [
     "dataclasses_json"
 ]
 
+[project.scripts]
+monitor_alarm = "alarm_monitor.monitor:monitor_alarm"
+
 [build-system]
 requires = ["setuptools>=45", "wheel", "Cython>=0.29.21"]
 build-backend = "setuptools.build_meta"

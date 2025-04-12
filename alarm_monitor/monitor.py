@@ -9,7 +9,10 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from dataclasses_json import dataclass_json
 
-from .commands import AlarmOFF, AlarmON, AuthME, Hello, Help, QueryMove, SetAlarmCode, SetDefaultPartitions, Subscribe, get_help, parse_sentence, split_sentences
+from .commands import (
+    AlarmOFF, AlarmON, AuthME, Hello, Help, QueryMove, SetAlarmCode,
+    SetDefaultPartitions, Subscribe, get_help, parse_sentence, split_sentences
+)
 from .facebook_msg import InputMessage, get_fb_user_id, receive_fb_messages, send_fb_message
 from .alarm import AlarmConnection
 
@@ -184,12 +187,8 @@ async def monitor_alarm_async(
 @option("--alarm_port", default=10967, help="Port of alarm")
 @option("--config_file", help="Path to config file")
 def monitor_alarm(alarm_ip, alarm_port, config_file):
+    logging.basicConfig()
     run(monitor_alarm_async(
         alarm_ip, alarm_port, environ['FACEBOOK_TOKEN'],
         config_file=config_file, secret=environ['SECRET']
     ))
-
-
-if __name__ == "__main__":
-    logging.basicConfig()
-    monitor_alarm()

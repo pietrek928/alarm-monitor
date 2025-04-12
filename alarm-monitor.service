@@ -1,0 +1,18 @@
+[Unit]
+Description=Alarm Monitor Daemon
+After=network.target
+
+[Service]
+User=alarm
+Group=alarm
+Type=simple
+WorkingDirectory=/rw/alarm-monitor
+ExecStart=/rw/alarm-monitor/bin/monitor_alarm --alarm_ip=192.168.1.207 --config_file=cfg.json
+EnvironmentFile=/rw/alarm-monitor/env.txt 
+Restart=on-failure
+RestartSec=5min
+KillMode=mixed
+TimeoutStopSec=5
+
+[Install]
+WantedBy=multi-user.target
