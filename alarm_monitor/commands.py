@@ -15,6 +15,10 @@ class QueryMove(UserCommand):
     pass
 
 @dataclass
+class QueryArmedPartitions(UserCommand):
+    pass
+
+@dataclass
 class Hello(UserCommand):
     pass
 
@@ -104,6 +108,7 @@ Autoryzacja: zaloguj <haslo>
 Powiadomienia: informuj
 Włącz alarm: wlacz alarm <partycje?> | zazbroj <partycje?>
 Wyłącz alarm: wylacz alarm <partycje?> | rozbroj <partycje?>
+Sprawdź alarm: czy alarm
 Ustaw kod: ustaw kod <kod>
 Ustaw domyślne partycje: ustaw partycje <partycje>
     '''
@@ -148,6 +153,10 @@ def parse_sentence(s: Tuple[str, ...]) -> Iterable[UserCommand]:
         s = s[1:]
         if has_word_by_pref(s, MOVE_WORD_PREF):
             yield QueryMove()
+            return
+
+        if has_word_by_pref(s, ALARM_WORDS):
+            yield QueryArmedPartitions()
             return
 
     if has_word_by_pref(s, OFF_WORDS_PREF):

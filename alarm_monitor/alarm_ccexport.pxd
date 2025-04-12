@@ -17,3 +17,4 @@ cdef extern from "alarm.cc":
         string describe_move()
         void query_alarm()
         void query_move()
+        void query_armed_partitions()

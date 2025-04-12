@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 from dataclasses_json import dataclass_json
 
 from .commands import (
-    AlarmOFF, AlarmON, AuthME, Hello, Help, QueryMove, SetAlarmCode,
+    AlarmOFF, AlarmON, AuthME, Hello, Help, QueryArmedPartitions, QueryMove, SetAlarmCode,
     SetDefaultPartitions, Subscribe, get_help, parse_sentence, split_sentences
 )
 from .facebook_msg import InputMessage, get_fb_user_id, receive_fb_messages, send_fb_message
@@ -148,6 +148,9 @@ async def monitor_alarm_async(
                             await send_fb_message(cmd.sender_id, 'Powiadomienia wyłączone', facebookToken)
                     elif isinstance(cmd, QueryMove):
                         await send_fb_message(cmd.sender_id, alarm_conn.describe_move(), facebookToken)
+                    elif isinstance(cmd, QueryArmedPartitions):
+                        await loop.run_in_executor(pool, alarm_conn.query_armed_partitions)
+                        resp.add(cmd.sender_id)
                     elif isinstance(cmd, SetAlarmCode):
                         cfg.code = cmd.code
                     elif isinstance(cmd, SetDefaultPartitions):
@@ -164,7 +167,6 @@ async def monitor_alarm_async(
                             resp.add(cmd.sender_id)
 
                 if resp:
-                    resp.update(cfg.alert_fb_ids)
                     alarm_messages = await loop.run_in_executor(pool, alarm_conn.receive_data)
                     for message in alarm_messages:
                         for alert_id in resp:

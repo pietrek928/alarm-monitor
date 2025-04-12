@@ -219,6 +219,12 @@ int extract_alarm_packet(const uint8_t *data, int l, int &it,
   return 0;
 }
 
+void send_alarm_query(int sock, uint8_t code) {
+  uint8_t send_buf[MAX_PACKET];
+  int send_len = prepare_alarm_packet(send_buf, &code, 1);
+  send_data(sock, send_buf, send_len);
+}
+
 void compare_alarm_state(uint32_t old_zones, uint32_t new_zones,
                          std::vector<std::string> &messages_out) {
   int it = 1;
@@ -238,19 +244,27 @@ void compare_alarm_state(uint32_t old_zones, uint32_t new_zones,
   }
 }
 
-std::string describe_move_state(uint32_t move_state) {
-  if (!move_state) return "Brak ruchu";
-
-  std::string descr = "Wykryto ruch w strefach:";
+std::string describe_mask(uint32_t mask) {
+  std::string descr = "";
   int it = 1;
-  while (move_state != 0) {
-    if (move_state & 1) {
+  while (mask != 0) {
+    if (mask & 1) {
       descr += " " + std::to_string(it);
     }
-    move_state >>= 1;
+    mask >>= 1;
     it++;
   }
   return descr;
+}
+
+std::string describe_move_state(uint32_t move_state) {
+  if (!move_state) return "Brak ruchu";
+  return "Wykryto ruch w strefach:" + describe_mask(move_state);
+}
+
+std::string describe_armed_partitions(uint32_t partitions) {
+  if (!partitions) return "Brak zazbrojenia";
+  return "Zazbrojone strefy:" + describe_mask(partitions);
 }
 
 uint32_t numbers_to_mask(
@@ -293,6 +307,12 @@ class AlarmConnection {
         } break;
         case MOVE:
           move_state = get_num(buf, size);
+          break;
+        case ARMED_PARTITIONS_SUPPRESSED:
+        case ARMED_PARTITIONS_REALLY:
+        case ARMED_PARTITIONS_MODE_2:
+        case ARMED_PARTITIONS_MODE_3:
+          messages_out.push_back(describe_armed_partitions(get_num(buf, size)));
           break;
         case RETURN_CODE:
           messages_out.push_back(return_code_to_string_pl(buf[0]));
@@ -368,17 +388,15 @@ class AlarmConnection {
     }
 
     void query_alarm() {
-      uint8_t q = ALARM_QUERY::AL;
-      uint8_t send_buf[MAX_PACKET];
-      int send_len = prepare_alarm_packet(send_buf, &q, 1);
-      send_data(sock, send_buf, send_len);
+      send_alarm_query(sock, ALARM_QUERY::AL);
     }
 
     void query_move() {
-      uint8_t q = ALARM_QUERY::MOVE;
-      uint8_t send_buf[MAX_PACKET];
-      int send_len = prepare_alarm_packet(send_buf, &q, 1);
-      send_data(sock, send_buf, send_len);
+      send_alarm_query(sock, ALARM_QUERY::MOVE);
+    }
+
+    void query_armed_partitions() {
+      send_alarm_query(sock, ALARM_QUERY::ARMED_PARTITIONS_REALLY);
     }
 
     void send_arm_cmd(

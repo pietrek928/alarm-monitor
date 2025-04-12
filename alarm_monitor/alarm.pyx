@@ -44,3 +44,6 @@ cdef class AlarmConnection:
 
     def query_move(self):
         self.cc_obj.query_move()
+
+    def query_armed_partitions(self):
+        self.cc_obj.query_armed_partitions()
