@@ -1,7 +1,10 @@
 #!/bin/bash
 
 INSTALL_PATH="$1"
-PYTHON_BIN="$2"
+PYTHON_BIN="${2:-python3}"
 
-python -m venv "$INSTALL_PATH" || exit 1
-"$INSTALL_PATH/bin/pip" install . || exit 1
+args=(sync)
+if [ -n "$2" ]; then
+  args+=(--python "$PYTHON_BIN")
+fi
+UV_PROJECT_ENVIRONMENT="$INSTALL_PATH" "$PYTHON_BIN" -m uv "${args[@]}"
