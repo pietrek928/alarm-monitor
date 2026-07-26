@@ -27,5 +27,5 @@ wheel.packages = ["alarm_monitor"]
 cache-keys = [
     { file = "pyproject.toml" },
     { file = "CMakeLists.txt" },
-    { file = "alarm_monitor/**/*.{h,hpp,cc,cpp}" },
+    { file = "alarm_monitor/**/*.{h,cc}" },
 ]

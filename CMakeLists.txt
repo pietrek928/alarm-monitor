@@ -22,7 +22,7 @@ nanobind_add_module(
   alarm
   STABLE_ABI
   NB_STATIC
-  alarm_monitor/alarm_bindings.cpp
+  alarm_monitor/alarm_bindings.cc
   alarm_monitor/alarm.cc
 )
 

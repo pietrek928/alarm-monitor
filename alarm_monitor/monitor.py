@@ -1,37 +1,51 @@
 import logging
-from functools import partial
-from os import environ
 from asyncio import CancelledError, get_running_loop, run, sleep
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
+from functools import partial
+from os import environ
 
 import aiofiles
 from click import ClickException, command, option
 from dataclasses_json import dataclass_json
 
+from .alarm import AlarmConnection
 from .commands import (
-    AlarmOFF, AlarmON, AuthME, Hello, Help, QueryArmedPartitions, QueryMove,
-    SetAlarmCode, SetDefaultPartitions, Subscribe, get_help, parse_sentence,
+    AlarmOFF,
+    AlarmON,
+    AuthME,
+    Hello,
+    Help,
+    QueryArmedPartitions,
+    QueryMove,
+    SetAlarmCode,
+    SetDefaultPartitions,
+    Subscribe,
+    get_help,
+    parse_sentence,
     split_sentences,
 )
-from .facebook_msg import InputMessage, get_fb_user_id, receive_fb_messages, send_fb_message
-from .alarm import AlarmConnection
-
+from .facebook_msg import (
+    InputMessage,
+    get_fb_user_id,
+    receive_fb_messages,
+    send_fb_message,
+)
 
 UTC = timezone.utc
 SLEEP_SECONDS = 5
 FB_POLL_EVERY = 12
 MESSAGE_VALID_SECONDS = 120
 
-logger = logging.getLogger('alarm_monitor')
+logger = logging.getLogger("alarm_monitor")
 logger.setLevel(logging.INFO)
 
 
 @dataclass_json
 @dataclass
 class AlarmConfig:
-    code: str = ''
+    code: str = ""
     partitions: set[int] = field(default_factory=set)
     alert_fb_ids: set[str] = field(default_factory=set)
     authorize_fb_ids: set[str] = field(default_factory=set)
@@ -50,7 +64,7 @@ class MessageFilter:
         current_timestamp = datetime.now(UTC)
         if current_timestamp < messages[-1].timestamp:
             logger.warning(
-                'Current time is backward by %s',
+                "Current time is backward by %s",
                 messages[-1].timestamp - current_timestamp,
             )
             current_timestamp = messages[-1].timestamp
@@ -63,7 +77,7 @@ class MessageFilter:
             if m.id in self.processed:
                 continue
             self.processed[m.id] = m
-            logger.info('Processing message from %s: %s', m.sender_id, m.content)
+            logger.info("Processing message from %s: %s", m.sender_id, m.content)
             r.append(m)
         return tuple(r)
 
@@ -74,8 +88,7 @@ class MessageFilter:
             ).timestamp
             valid_since = last_timestamp - timedelta(seconds=valid_seconds)
             self.processed = {
-                mid: m for mid, m in self.processed.items()
-                if m.timestamp > valid_since
+                mid: m for mid, m in self.processed.items() if m.timestamp > valid_since
             }
 
 
@@ -89,29 +102,32 @@ def parse_messages(messages: tuple[InputMessage, ...]):
 
 
 async def save_config(config_file: str, cfg: AlarmConfig):
-    logger.info('Saving config')
-    async with aiofiles.open(config_file, 'w') as f:
+    logger.info("Saving config")
+    async with aiofiles.open(config_file, "w") as f:
         await f.write(cfg.to_json())
 
 
 async def load_config(config_file: str) -> AlarmConfig:
     cfg = AlarmConfig()
     try:
-        async with aiofiles.open(config_file, 'r') as f:
+        async with aiofiles.open(config_file, "r") as f:
             cfg = AlarmConfig.from_json(await f.read())
         cfg.partitions = set(cfg.partitions)
         cfg.alert_fb_ids = set(cfg.alert_fb_ids)
         cfg.authorize_fb_ids = set(cfg.authorize_fb_ids)
     except FileNotFoundError:
-        logger.info('Config file %s not found; using defaults', config_file)
+        logger.info("Config file %s not found; using defaults", config_file)
     except Exception:
-        logger.exception('Failed to load config from %s; using defaults', config_file)
+        logger.exception("Failed to load config from %s; using defaults", config_file)
     return cfg
 
 
 async def monitor_alarm_async(
-    ip: str, port: int, facebook_token: str,
-    config_file: str, secret: str,
+    ip: str,
+    port: int,
+    facebook_token: str,
+    config_file: str,
+    secret: str,
 ):
     cfg = await load_config(config_file)
     message_filter = MessageFilter()
@@ -123,11 +139,11 @@ async def monitor_alarm_async(
         try:
             fb_user_id = await get_fb_user_id(facebook_token)
             if not fb_user_id:
-                raise RuntimeError('Could not get fb user id')
-            logger.info('FB user id: %s', fb_user_id)
+                raise RuntimeError("Could not get fb user id")
+            logger.info("FB user id: %s", fb_user_id)
 
             alarm_conn = await alarm(AlarmConnection, ip, port)
-            logger.info('Connected to alarm at %s:%s', ip, port)
+            logger.info("Connected to alarm at %s:%s", ip, port)
 
             recv_it = 0
             while True:
@@ -138,9 +154,7 @@ async def monitor_alarm_async(
                     if alarm_messages:
                         for message in alarm_messages:
                             for alert_id in cfg.alert_fb_ids:
-                                await send_fb_message(
-                                    alert_id, message, facebook_token
-                                )
+                                await send_fb_message(alert_id, message, facebook_token)
 
                     if recv_it <= 0:
                         input_messages = await receive_fb_messages(facebook_token)
@@ -157,7 +171,7 @@ async def monitor_alarm_async(
                             if isinstance(cmd, Hello):
                                 await send_fb_message(
                                     cmd.sender_id,
-                                    'Cześć! Tu rezydencja Malużyn',
+                                    "Cześć! Tu rezydencja Malużyn",
                                     facebook_token,
                                 )
                                 continue
@@ -174,15 +188,16 @@ async def monitor_alarm_async(
                                     await save_config(config_file, cfg)
                                     await send_fb_message(
                                         cmd.sender_id,
-                                        'Zautoryzowano',
+                                        "Zautoryzowano",
                                         facebook_token,
                                     )
                                 continue
 
                             if cmd.sender_id not in cfg.authorize_fb_ids:
                                 logger.info(
-                                    'Command from %s not authorized: %s',
-                                    cmd.sender_id, cmd,
+                                    "Command from %s not authorized: %s",
+                                    cmd.sender_id,
+                                    cmd,
                                 )
                                 continue
 
@@ -192,7 +207,7 @@ async def monitor_alarm_async(
                                     await save_config(config_file, cfg)
                                     await send_fb_message(
                                         cmd.sender_id,
-                                        'Powiadomienia włączone',
+                                        "Powiadomienia włączone",
                                         facebook_token,
                                     )
                                 else:
@@ -200,7 +215,7 @@ async def monitor_alarm_async(
                                     await save_config(config_file, cfg)
                                     await send_fb_message(
                                         cmd.sender_id,
-                                        'Powiadomienia wyłączone',
+                                        "Powiadomienia wyłączone",
                                         facebook_token,
                                     )
                             elif isinstance(cmd, QueryMove):
@@ -246,7 +261,7 @@ async def monitor_alarm_async(
                 except (CancelledError, KeyboardInterrupt):
                     raise
                 except Exception:
-                    logger.exception('monitor loop iteration failed')
+                    logger.exception("monitor loop iteration failed")
 
                 await sleep(SLEEP_SECONDS)
         finally:
@@ -254,23 +269,28 @@ async def monitor_alarm_async(
                 try:
                     await alarm(alarm_conn.disconnect)
                 except Exception:
-                    logger.exception('Failed to disconnect alarm')
+                    logger.exception("Failed to disconnect alarm")
             await save_config(config_file, cfg)
 
 
 @command()
-@option('--alarm_ip', required=True, help='IP address of alarm')
-@option('--alarm_port', default=10967, help='Port of alarm')
-@option('--config_file', required=True, help='Path to config file')
+@option("--alarm_ip", required=True, help="IP address of alarm")
+@option("--alarm_port", default=10967, help="Port of alarm")
+@option("--config_file", required=True, help="Path to config file")
 def monitor_alarm(alarm_ip, alarm_port, config_file):
     logging.basicConfig()
-    facebook_token = environ.get('FACEBOOK_TOKEN')
-    secret = environ.get('SECRET')
+    facebook_token = environ.get("FACEBOOK_TOKEN")
+    secret = environ.get("SECRET")
     if not facebook_token:
-        raise ClickException('FACEBOOK_TOKEN environment variable is not set')
+        raise ClickException("FACEBOOK_TOKEN environment variable is not set")
     if not secret:
-        raise ClickException('SECRET environment variable is not set')
-    run(monitor_alarm_async(
-        alarm_ip, alarm_port, facebook_token,
-        config_file=config_file, secret=secret,
-    ))
+        raise ClickException("SECRET environment variable is not set")
+    run(
+        monitor_alarm_async(
+            alarm_ip,
+            alarm_port,
+            facebook_token,
+            config_file=config_file,
+            secret=secret,
+        )
+    )

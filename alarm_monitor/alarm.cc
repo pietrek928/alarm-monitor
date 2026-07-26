@@ -1,4 +1,4 @@
-#include "alarm.hpp"
+#include "alarm.h"
 
 #include <arpa/inet.h>
 #include <sys/socket.h>

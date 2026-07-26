@@ -6,7 +6,7 @@
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
 
-#include "alarm.hpp"
+#include "alarm.h"
 
 namespace nb = nanobind;
 

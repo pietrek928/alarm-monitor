@@ -1,11 +1,10 @@
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
 from datetime import datetime
 
 from httpx import AsyncClient, HTTPStatusError, RequestError, Response
 
-
-logger = logging.getLogger('fb')
+logger = logging.getLogger("fb")
 logger.setLevel(logging.INFO)
 
 GRAPH_API = "https://graph.facebook.com/v22.0"
@@ -109,13 +108,19 @@ async def receive_fb_messages(access_token) -> tuple[InputMessage, ...]:
                 logger.warning("Skipping incomplete Facebook message: %s", message_data)
                 continue
             try:
-                messages.append(InputMessage(
-                    id=msg_id,
-                    timestamp=datetime.strptime(created_time, '%Y-%m-%dT%H:%M:%S%z'),
-                    content=content,
-                    sender_id=sender_id,
-                ))
+                messages.append(
+                    InputMessage(
+                        id=msg_id,
+                        timestamp=datetime.strptime(
+                            created_time, "%Y-%m-%dT%H:%M:%S%z"
+                        ),
+                        content=content,
+                        sender_id=sender_id,
+                    )
+                )
             except (ValueError, TypeError) as e:
-                logger.warning("Skipping unparseable Facebook message %s: %s", msg_id, e)
+                logger.warning(
+                    "Skipping unparseable Facebook message %s: %s", msg_id, e
+                )
 
     return tuple(messages)
