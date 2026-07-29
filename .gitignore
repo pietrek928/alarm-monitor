@@ -1,6 +1,8 @@
 **/*.egg-info
 **/*.so
 **/__pycache__/
+.*cache
 build/
 .venv/
+venv
 doc

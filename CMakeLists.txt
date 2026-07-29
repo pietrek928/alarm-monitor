@@ -22,11 +22,11 @@ nanobind_add_module(
   alarm
   STABLE_ABI
   NB_STATIC
-  alarm_monitor/alarm_bindings.cc
-  alarm_monitor/alarm.cc
+  src/alarm_monitor/alarm_bindings.cc
+  src/alarm_monitor/alarm.cc
 )
 
-target_include_directories(alarm PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/alarm_monitor)
+target_include_directories(alarm PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/alarm_monitor)
 target_compile_options(alarm PRIVATE -O2 -march=native)
 
 install(TARGETS alarm LIBRARY DESTINATION alarm_monitor)

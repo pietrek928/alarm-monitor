@@ -21,11 +21,23 @@ build-backend = "scikit_build_core.build"
 minimum-version = "build-system.requires"
 build-dir = "build/{wheel_tag}"
 wheel.py-api = "cp312"
-wheel.packages = ["alarm_monitor"]
+wheel.packages = ["src/alarm_monitor"]
+wheel.exclude = ["**/*.cc", "**/*.h"]
+# Ignore .gitignore during packaging. A project-root venv can leave a catch-all
+# `*` ignore that would otherwise omit all pure-Python modules from the wheel.
+sdist.inclusion-mode = "manual"
+sdist.exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "build",
+    "**/*.egg-info",
+    "**/__pycache__",
+]
 
 [tool.uv]
 cache-keys = [
     { file = "pyproject.toml" },
     { file = "CMakeLists.txt" },
-    { file = "alarm_monitor/**/*.{h,cc}" },
+    { file = "src/alarm_monitor/**/*.{h,cc}" },
 ]

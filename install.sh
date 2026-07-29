@@ -1,10 +1,16 @@
 #!/bin/bash
+set -euo pipefail
 
-INSTALL_PATH="$1"
-PYTHON_BIN="${2:-python3}"
+INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PYTHON_BIN="${1:-python3}"
 
-args=(sync)
-if [ -n "$2" ]; then
-  args+=(--python "$PYTHON_BIN")
+if [[ ! -f "$INSTALL_DIR/pyvenv.cfg" ]]; then
+  "$PYTHON_BIN" -m venv "$INSTALL_DIR"
 fi
-UV_PROJECT_ENVIRONMENT="$INSTALL_PATH" "$PYTHON_BIN" -m uv "${args[@]}"
+
+"$INSTALL_DIR/bin/python" -m pip install -U uv
+UV_PROJECT_ENVIRONMENT="$INSTALL_DIR" \
+  "$INSTALL_DIR/bin/python" -m uv sync \
+  --no-editable \
+  --python "$INSTALL_DIR/bin/python" \
+  --cache-dir=/tmp/uv-cache
