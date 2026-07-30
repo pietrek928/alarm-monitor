@@ -23,6 +23,11 @@ class QueryArmedPartitions(UserCommand):
 
 
 @dataclass
+class QueryStatus(UserCommand):
+    pass
+
+
+@dataclass
 class Hello(UserCommand):
     pass
 
@@ -99,6 +104,7 @@ AUTH_ME_WORDS_PREF = ("zaloguj", "autoryzuj", "loguj", "pozwol", "zezwol")
 HELP_WORDS_PREF = ("pomoc", "pomoz", "instrukcja", "instrukcje", "komendy", "help")
 SUBSCRIBE_WORDS_PREF = ("informuj", "subskrybuj", "powiadom", "powiadamiaj")
 MOVE_WORD_PREF = ("ruch", "rusz", "porusz")
+STATUS_WORDS = ("status", "stan")
 HELLO_WORD_PREF = ("hej", "czesc", "witaj", "witam")
 ON_WORS_PREF = ("wlacz", "zalacz", "odpal", "zazbroj")
 OFF_WORDS_PREF = ("wylacz", "zgas", "rozbroj")
@@ -118,6 +124,7 @@ Powiadomienia: informuj
 Włącz alarm: wlacz alarm <partycje?> | zazbroj <partycje?>
 Wyłącz alarm: wylacz alarm <partycje?> | rozbroj <partycje?>
 Sprawdź alarm: czy alarm
+Status: status | stan
 Ustaw kod: ustaw kod <kod>
 Ustaw domyślne partycje: ustaw partycje <partycje>
     """
@@ -156,8 +163,16 @@ def parse_sentence(s: Tuple[str, ...]) -> Iterable[UserCommand]:
         yield Subscribe(subscribe=not has_word(s, NOT_WORDS))
         return
 
+    if has_word_by_pref(s, STATUS_WORDS):
+        yield QueryStatus()
+        return
+
     if s and s[0] in QUERY_PREF:
         s = s[1:]
+        if has_word_by_pref(s, STATUS_WORDS):
+            yield QueryStatus()
+            return
+
         if has_word_by_pref(s, MOVE_WORD_PREF):
             yield QueryMove()
             return

@@ -1,22 +1,15 @@
 import logging
-from dataclasses import dataclass
 from datetime import datetime
 
 from httpx import AsyncClient, HTTPStatusError, RequestError, Response
+
+from .messaging import PLATFORM_FB, InputMessage, prefix_id
 
 logger = logging.getLogger("fb")
 logger.setLevel(logging.INFO)
 
 GRAPH_API = "https://graph.facebook.com/v22.0"
 REQUEST_TIMEOUT = 30.0
-
-
-@dataclass
-class InputMessage:
-    id: str
-    timestamp: datetime
-    content: str
-    sender_id: str
 
 
 async def _request(
@@ -57,13 +50,17 @@ async def get_fb_user_id(access_token) -> str | None:
     if response is None:
         return None
     try:
-        return response.json().get("id")
+        raw = response.json().get("id")
+        if raw is None:
+            return None
+        return prefix_id(PLATFORM_FB, raw)
     except Exception as e:
         logger.exception("Error parsing Facebook user id: %s", e)
         return None
 
 
 async def send_fb_message(recipient_id, message_text, access_token) -> bool:
+    """Send to a bare Facebook page-scoped user id (no fb: prefix)."""
     logger.info("%s -> %s", message_text, recipient_id)
     response = await _request(
         "POST",
@@ -115,7 +112,7 @@ async def receive_fb_messages(access_token) -> tuple[InputMessage, ...]:
                             created_time, "%Y-%m-%dT%H:%M:%S%z"
                         ),
                         content=content,
-                        sender_id=sender_id,
+                        sender_id=prefix_id(PLATFORM_FB, sender_id),
                     )
                 )
             except (ValueError, TypeError) as e:
