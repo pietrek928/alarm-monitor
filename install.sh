@@ -12,5 +12,6 @@ fi
 UV_PROJECT_ENVIRONMENT="$INSTALL_DIR" \
   "$INSTALL_DIR/bin/python" -m uv sync \
   --no-editable \
+  --reinstall-package alarm_monitor \
   --python "$INSTALL_DIR/bin/python" \
   --cache-dir=/tmp/uv-cache

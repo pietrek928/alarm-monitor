@@ -55,14 +55,18 @@ def chunk_text(text: str, size: int = MESSAGE_CHUNK_SIZE) -> tuple[str, ...]:
 
 def _log_message(message: InputMessage) -> None:
     preview = message.content
-    for sentence in split_sentences(message.content):
-        for cmd in parse_sentence(sentence):
-            if isinstance(cmd, AuthME):
-                preview = "<redacted auth>"
-                break
-        else:
-            continue
-        break
+    try:
+        for sentence in split_sentences(message.content):
+            for cmd in parse_sentence(sentence):
+                if isinstance(cmd, AuthME):
+                    preview = "<redacted auth>"
+                    break
+            else:
+                continue
+            break
+    except Exception:
+        logger.exception("Failed to build log preview for message %s", message.id)
+        preview = "<unloggable>"
     logger.info("Processing message from %s: %s", message.sender_id, preview)
 
 
@@ -155,6 +159,7 @@ class MessagingHub:
             return
         for chunk in chunk_text(text):
             try:
+                logger.info("%s -> %s", chunk.replace("\n", " | "), user_id)
                 await send_fn(raw, chunk)
             except Exception:
                 logger.exception("Failed to send to %s", user_id)

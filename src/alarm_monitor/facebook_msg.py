@@ -61,7 +61,6 @@ async def get_fb_user_id(access_token) -> str | None:
 
 async def send_fb_message(recipient_id, message_text, access_token) -> bool:
     """Send to a bare Facebook page-scoped user id (no fb: prefix)."""
-    logger.info("%s -> %s", message_text, recipient_id)
     response = await _request(
         "POST",
         f"{GRAPH_API}/me/messages",

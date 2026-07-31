@@ -23,6 +23,7 @@ logger = logging.getLogger("discord_msg")
 logger.setLevel(logging.INFO)
 
 API_BASE = "https://discord.com/api/v10"
+GATEWAY_URL = "wss://gateway.discord.gg/?v=10&encoding=json"
 REQUEST_TIMEOUT = 30.0
 # DIRECT_MESSAGES only — DM content does not need privileged MESSAGE_CONTENT
 INTENT_DIRECT_MESSAGES = 1 << 12
@@ -121,9 +122,7 @@ class AlarmDiscordClient:
             },
         )
         try:
-            gateway_url = await self._get_gateway_url()
-            uri = f"{gateway_url}?v=10&encoding=json"
-            async with ws_connect(uri) as ws:
+            async with ws_connect(GATEWAY_URL) as ws:
                 self._ws = ws
                 await self._gateway_loop()
         finally:
@@ -168,15 +167,6 @@ class AlarmDiscordClient:
             json={"content": text},
         )
         response.raise_for_status()
-
-    async def _get_gateway_url(self) -> str:
-        assert self._http is not None
-        response = await self._http.get("/gateway")
-        response.raise_for_status()
-        url = response.json().get("url")
-        if not url:
-            raise RuntimeError("Discord /gateway response missing url")
-        return url
 
     async def _create_dm_channel(self, bare_user_id: str) -> str:
         assert self._http is not None

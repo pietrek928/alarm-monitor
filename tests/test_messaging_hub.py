@@ -63,6 +63,19 @@ async def test_broadcast_isolates_failures_and_chunks():
 
 
 @pytest.mark.asyncio
+async def test_hub_logs_outbound(caplog):
+    import logging
+
+    hub = MessagingHub()
+    fb = FakeTransport()
+    hub.register("fb", fb, "fb:bot")
+    with caplog.at_level(logging.INFO, logger="alarm_monitor.messaging"):
+        await hub.send("fb:1", "hello\nworld")
+    assert any("hello | world -> fb:1" in r.message for r in caplog.records)
+    assert fb.sent == [("1", "hello\nworld")]
+
+
+@pytest.mark.asyncio
 async def test_unregister():
     hub = MessagingHub()
     fb = FakeTransport()

@@ -1,6 +1,7 @@
 import logging
 from asyncio import (
     FIRST_EXCEPTION,
+    Event,
     Lock,
     create_task,
     gather,
@@ -18,7 +19,7 @@ from typing import Callable
 from click import ClickException, command, option
 
 from .alarm import AlarmConnection
-from .dispatch import MonitorContext, load_config, save_config
+from .dispatch import MonitorContext, deliver_alarm_messages, load_config, save_config
 from .messaging import PLATFORM_DISCORD, PLATFORM_FB, MessageFilter, MessagingHub
 from .platforms import (
     PlatformRegistry,
@@ -60,14 +61,11 @@ class ErrorWindow:
 
 async def poll_alarm(ctx: MonitorContext) -> None:
     async with ctx.alarm_lock:
-        await ctx.alarm(ctx.alarm_conn.query_alarm)
-        await ctx.alarm(ctx.alarm_conn.query_move)
-        alarm_messages = await ctx.alarm(ctx.alarm_conn.receive_data)
-    ctx.runtime.note_alarm_messages(alarm_messages)
-    async with ctx.config_lock:
-        recipients = tuple(ctx.cfg.alert_ids)
-    for message in alarm_messages:
-        await ctx.hub.broadcast(recipients, message)
+        alarm_conn = await ctx.require_alarm()
+        await ctx.alarm(alarm_conn.query_alarm)
+        await ctx.alarm(alarm_conn.query_move)
+        alarm_messages = await ctx.alarm(alarm_conn.receive_data)
+    await deliver_alarm_messages(ctx, alarm_messages, reply_to=())
 
 
 async def alarm_poll_loop(ctx: MonitorContext) -> None:
@@ -80,6 +78,20 @@ async def alarm_poll_loop(ctx: MonitorContext) -> None:
             if errors.record():
                 raise
         await sleep(ALARM_POLL_SECONDS)
+
+
+async def alarm_connect_and_poll(
+    ctx: MonitorContext,
+    alarm: AlarmRunner,
+    ip: str,
+    port: int,
+) -> None:
+    conn = await alarm(AlarmConnection, ip, port)
+    ctx.alarm_conn = conn
+    ctx.runtime.alarm_connected_at = datetime.now(UTC)
+    ctx.alarm_ready.set()
+    logger.info("Connected to alarm at %s:%s", ip, port)
+    await alarm_poll_loop(ctx)
 
 
 async def monitor_alarm_async(
@@ -111,22 +123,17 @@ async def monitor_alarm_async(
     if discord_token:
         configured.add(PLATFORM_DISCORD)
     registry = PlatformRegistry(configured)
+    runtime = RuntimeStatus(alarm_endpoint=f"{ip}:{port}")
 
     with ThreadPoolExecutor(max_workers=1) as pool:
         alarm = partial(loop.run_in_executor, pool)
-        alarm_conn = None
+        ctx: MonitorContext | None = None
         tasks = []
         try:
-            alarm_conn = await alarm(AlarmConnection, ip, port)
-            logger.info("Connected to alarm at %s:%s", ip, port)
-
-            runtime = RuntimeStatus(
-                alarm_endpoint=f"{ip}:{port}",
-                alarm_connected_at=datetime.now(UTC),
-            )
             ctx = MonitorContext(
                 alarm=alarm,
-                alarm_conn=alarm_conn,
+                alarm_conn=None,
+                alarm_ready=Event(),
                 cfg=cfg,
                 config_file=config_file,
                 secret=secret,
@@ -139,7 +146,10 @@ async def monitor_alarm_async(
             )
 
             tasks = [
-                create_task(alarm_poll_loop(ctx), name="alarm_poll"),
+                create_task(
+                    alarm_connect_and_poll(ctx, alarm, ip, port),
+                    name="alarm_poll",
+                ),
             ]
             if facebook_token:
                 fb_filter = MessageFilter()
@@ -180,9 +190,9 @@ async def monitor_alarm_async(
                 if exc is not None:
                     raise exc
         finally:
-            if alarm_conn is not None:
+            if ctx is not None and ctx.alarm_conn is not None:
                 try:
-                    await alarm(alarm_conn.disconnect)
+                    await alarm(ctx.alarm_conn.disconnect)
                 except Exception:
                     logger.exception("Failed to disconnect alarm")
             async with config_lock:

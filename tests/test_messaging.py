@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from alarm_monitor.commands import QueryStatus, split_sentences
 from alarm_monitor.messaging import (
     InputMessage,
     MessageFilter,
@@ -37,6 +38,21 @@ def test_chunk_text():
     assert chunk_text("", 10) == ("",)
 
 
+def test_split_sentences_multiword_then_short():
+    # Regression: multi-word segment used to leave current_sentence as a tuple,
+    # then a following short segment called .extend() and crashed.
+    # Short fragments after '.' are intentionally merged into the prior sentence.
+    assert split_sentences("hello world. ok") == (("hello", "world", "ok"),)
+    assert split_sentences("hi. wlacz alarm. status") == (
+        ("hi",),
+        ("wlacz", "alarm", "status"),
+    )
+
+
+def test_split_sentences_status_alone():
+    assert split_sentences("Status") == (("status",),)
+
+
 def test_message_filter_dedup_and_ttl():
     filt = MessageFilter()
     now = datetime.now(UTC)
@@ -49,6 +65,18 @@ def test_message_filter_dedup_and_ttl():
     kept = filt.filter(messages, valid_seconds=120)
     assert [m.id for m in kept] == ["2", "3"]
     assert filt.filter(messages, valid_seconds=120) == ()
+
+
+def test_message_filter_survives_multiword_sentence_log():
+    filt = MessageFilter()
+    now = datetime.now(UTC)
+    kept = filt.filter(
+        (InputMessage("9", now, "wlacz alarm. status", "fb:1"),),
+        valid_seconds=120,
+    )
+    assert len(kept) == 1
+    cmds = list(parse_messages(kept))
+    assert any(isinstance(c, QueryStatus) for c in cmds)
 
 
 def test_parse_messages_auth_and_hello():

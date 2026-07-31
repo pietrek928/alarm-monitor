@@ -48,5 +48,5 @@ sdist.exclude = [
 cache-keys = [
     { file = "pyproject.toml" },
     { file = "CMakeLists.txt" },
-    { file = "src/alarm_monitor/**/*.{h,cc}" },
+    { file = "src/alarm_monitor/**/*.{h,cc,py}" },
 ]

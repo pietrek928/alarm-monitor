@@ -76,19 +76,17 @@ IGNORE_WORDS = {"sie", "sobie", "jest"}
 def split_sentences(s: str) -> Tuple[Tuple[str, ...], ...]:
     s = unidecode(s).lower()
     r = []
-    current_sentence = []
+    current_sentence: list[str] = []
     for v in SPLIT_SENTENCE_PATTERN.split(s):
         v = WHITESPACE_PATTERN.sub(" ", v)
-        v = v.split(" ")
-        v = tuple(x for x in v if x not in IGNORE_WORDS)
-        if len(v) <= 1:
-            current_sentence.extend(v)
+        tokens = tuple(x for x in v.split(" ") if x and x not in IGNORE_WORDS)
+        if len(tokens) <= 1:
+            current_sentence.extend(tokens)
             continue
 
         if current_sentence:
             r.append(tuple(current_sentence))
-            current_sentence = []
-        current_sentence = v
+        current_sentence = list(tokens)
     if current_sentence:
         r.append(tuple(current_sentence))
     return tuple(r)

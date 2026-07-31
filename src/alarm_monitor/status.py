@@ -4,6 +4,8 @@ from datetime import datetime, timedelta, timezone
 
 UTC = timezone.utc
 ALARM_START_PREFIX = "Alarm w strefie"
+ALARM_END_PREFIX = "Koniec alarmu w strefie"
+ALERT_PREFIXES = (ALARM_START_PREFIX, ALARM_END_PREFIX)
 
 
 def format_duration(started: datetime | None, *, now: datetime | None = None) -> str:
